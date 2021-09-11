@@ -27,7 +27,6 @@ void setup() {
   digitalWrite(11, HIGH);
 
   /*OUTPUT & Serial*/  
-  pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(9600);
 
   /*Receiver Channels*/      
