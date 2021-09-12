@@ -32,8 +32,7 @@ void setup() {
   /*Receiver Channels*/      
   pinMode(2, INPUT);
   pinMode(3, INPUT);
-  attachInterrupt(digitalPinToInterrupt(2), IR2, CHANGE); // Read both rising and falling edge 
-  attachInterrupt(digitalPinToInterrupt(3), IR3, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(2), IR, CHANGE); // Read both rising and falling edge 
 }
 
 void loop() {
@@ -43,12 +42,9 @@ void loop() {
   Serial.println((long unsigned)tchannel_3[2]);
 }
 
-
-void IR2() {
+// All Signals Are Uniform and Synchronous By Receiver - Braydon 
+void IR() {
   measure(2, tchannel_2);
-}
-
-void IR3() {
   measure(3, tchannel_3);
 }
 
@@ -61,9 +57,9 @@ void measure(int pin, volatile long unsigned times[]) {
   }
 }
 
-volatile long unsigned safe_range( volatile long unsigned a[]) {    // handles the return value's eventual overflow from micros() 
-  
-
+// handles the return value's eventual overflow from micros() 
+volatile long unsigned safe_range( volatile long unsigned a[]) {   
+   
   if(a[1] - a[0] > 3000) // condition will be true when micros has overflowed
       return a[0] - a[1];
       
