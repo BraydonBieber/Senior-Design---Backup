@@ -46,7 +46,6 @@ void loop() {
 
 void IR2() {
   measure(2, tchannel_2);
-  measure(3, tchannel_3);
 }
 
 void IR3() {
