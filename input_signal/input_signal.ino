@@ -15,17 +15,20 @@
  * VRB Knob Failsafe/Unused  - 6
  */
 
-volatile long unsigned tchannel_2[3] ={0, 1500, 1500};  // 1500uS is the neutral position, volatile is necessary for the interrupt
-volatile long unsigned tchannel_3[3] ={0, 1500, 1500}; 
+volatile long unsigned tchannel_2[3] = {0, 1500, 1500}; // 1500uS is the neutral position, volatile is necessary for the interrupt
+volatile long unsigned tchannel_3[3] = {0, 1500, 1500}; 
+volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 motor on 
 
 void setup() {
   
-  /* Temporary Receiver Power Supply*/
+  /*Relay For Ignition*/
   pinMode(12, OUTPUT);
-  pinMode(11, OUTPUT);
-  digitalWrite(12, HIGH);
-  digitalWrite(11, HIGH);
-
+  pinMode(5, INPUT); 
+  
+  /*Motor Driver*/
+  pinMode(11, OUTPUT); // 490Hz 
+  pinMode(9, OUTPUT);  // 490HZ
+  
   /*OUTPUT & Serial*/  
   Serial.begin(9600);
 
@@ -36,11 +39,33 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(3), IR3, CHANGE); // Only Pin 2 & 3 Are Supported For This Hardware Interrupt On Nano 
 }
 
+bool c6HIGH = false;
+
 void loop() {
-  char buffer[100];
-  sprintf(buffer, "channel 2: %u  channel 3: %u", (long unsigned)tchannel_2[2]);
-  Serial.print(buffer);
-  Serial.println((long unsigned)tchannel_3[2]);
+  
+ /* Measuring Relay Signal */
+  if(digitalRead(5) && !c6HIGH){
+    tchannel_6[0] = micros();
+    c6HIGH = true;
+  }
+  else if(!digitalRead(5) && c6HIGH){
+    tchannel_6[1] = micros();
+    tchannel_6[2] = safe_range(tchannel_6);
+    c6HIGH = false;
+  }
+  if(tchannel_6[2] > 1650){ 
+    startEngine(); // Deadzone - David Jochems 
+  }
+  else if(tchannel_6[2] < 1350) {
+    stopEngine(); // Deadzone - David Jochems 
+  }
+
+
+  /* Driving Functionality*/ 
+  int rightMotor = map(tchannel_2[2], 1000, 2000, 128, 255); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
+  int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);
+  analogWrite(9, rightMotor); // Apply mapped duty cycle 
+  analogWrite(11, leftMotor);
 }
 
 
@@ -57,15 +82,20 @@ void measure(int pin, volatile long unsigned times[]) {
     times[0] = micros();
   else{
     times[1] = micros();
-    times[2] = safe_range(times);
+    times[2] = safe_range(times); // handles the return value's eventual overflow from micros()
   }
 }
-
-// handles the return value's eventual overflow from micros() 
+ 
 volatile long unsigned safe_range( volatile long unsigned a[]) {   
-   
-  if(a[1] - a[0] > 3000) // condition will be true when micros has overflowed
-      return a[0] - a[1];
-      
+  if(a[1] - a[0] > 3000) // condition will be true when micros has overflowed - Braydon 
+      return a[0] - a[1];   
   return a[1] - a[0];
+}
+
+void startEngine(){
+  digitalWrite(12, LOW); 
+}
+
+void stopEngine(){
+  digitalWrite(12, HIGH);
 }
