@@ -19,6 +19,8 @@ volatile long unsigned tchannel_2[3] = {0, 1500, 1500}; // 1500uS is the neutral
 volatile long unsigned tchannel_3[3] = {0, 1500, 1500}; 
 volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 motor on 
 
+float prevWeight = 0.75;
+
 void setup() {
   
   /*Relay For Ignition*/
@@ -54,16 +56,23 @@ void loop() {
     c6HIGH = false;
   }
   if(tchannel_6[2] > 1650){ 
-    startEngine(); // Deadzone - David Jochems 
+    startRelay(); // Deadzone - David Jochems 
   }
   else if(tchannel_6[2] < 1350) {
-    stopEngine(); // Deadzone - David Jochems 
+    stopRelay(); // Deadzone - David Jochems 
   }
 
-
+  // rounding - if sticks are close to each other, make them the same value (the avg)
+  if (tchannel_2[2] - tchannel_3[2] < 25 && tchannel_2[2] - tchannel_3[2] > -25)
+  {
+    int avg = (tchannel_2[2] + tchannel_3[2]) / 2;
+    tchannel_2[2] = avg;
+    tchannel_3[2] = avg;
+  }
+  
   /* Driving Functionality*/ 
   int rightMotor = map(tchannel_2[2], 1000, 2000, 128, 255); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
-  int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);
+  int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);  
   analogWrite(9, rightMotor); // Apply mapped duty cycle 
   analogWrite(11, leftMotor);
 }
@@ -82,20 +91,22 @@ void measure(int pin, volatile long unsigned times[]) {
     times[0] = micros();
   else{
     times[1] = micros();
-    times[2] = safe_range(times); // handles the return value's eventual overflow from micros()
+    times[2] = times[2] * prevWeight + safe_range(times) * (1 - prevWeight); // smoothing using weighted avg to prevent quick speed changes 
   }
 }
- 
+
+
+// handles the return value's eventual overflow from micros()
 volatile long unsigned safe_range( volatile long unsigned a[]) {   
   if(a[1] - a[0] > 3000) // condition will be true when micros has overflowed - Braydon 
       return a[0] - a[1];   
   return a[1] - a[0];
 }
 
-void startEngine(){
+void startRelay(){
   digitalWrite(12, LOW); 
 }
 
-void stopEngine(){
+void stopRelay(){
   digitalWrite(12, HIGH);
 }
