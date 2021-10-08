@@ -19,7 +19,7 @@ volatile long unsigned tchannel_2[3] = {0, 1500, 1500}; // 1500uS is the neutral
 volatile long unsigned tchannel_3[3] = {0, 1500, 1500}; 
 volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 motor on 
 
-float prevWeight = 0.75;
+float prevWeight = 0.95;
 
 void setup() {
   
@@ -62,6 +62,12 @@ void loop() {
     stopRelay(); // Deadzone - David Jochems 
   }
 
+  // correcting out-of-bounds values
+  if (tchannel_2[2] > 2000) tchannel_2[2] = 2000;
+  if (tchannel_2[2] < 1000) tchannel_2[2] = 1000;
+  if (tchannel_3[2] > 2000) tchannel_3[2] = 2000;
+  if (tchannel_3[2] < 1000) tchannel_3[2] = 1000;
+      
   // rounding - if sticks are close to each other, make them the same value (the avg)
   if (tchannel_2[2] - tchannel_3[2] < 25 && tchannel_2[2] - tchannel_3[2] > -25)
   {
