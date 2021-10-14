@@ -101,8 +101,6 @@ void measure(int pin, volatile long unsigned times[]) {
   }
 }
 
-
-// handles the return value's eventual overflow from micros()
 volatile long unsigned safe_range( volatile long unsigned a[]) {   
   if(a[1] - a[0] > 2100 || a[1] - a[0] < 900) // Overflow had nothing to do with wrong value being returned - Braydon 
       return a[2];                            // Reuse previous value to drive motor 
