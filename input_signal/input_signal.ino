@@ -56,10 +56,10 @@ void loop() {
     c6HIGH = false;
   }
   if(tchannel_6[2] > 1650){ 
-    startRelay(); // Deadzone - David Jochems 
+    closeRelay(); // Deadzone - David Jochems 
   }
   else if(tchannel_6[2] < 1350) {
-    stopRelay(); // Deadzone - David Jochems 
+    openRelay(); // Deadzone - David Jochems 
   }
 
   // correcting out-of-bounds values
@@ -104,15 +104,15 @@ void measure(int pin, volatile long unsigned times[]) {
 
 // handles the return value's eventual overflow from micros()
 volatile long unsigned safe_range( volatile long unsigned a[]) {   
-  if(a[1] - a[0] > 3000) // condition will be true when micros has overflowed - Braydon 
-      return a[0] - a[1];   
-  return a[1] - a[0];
+  if(a[1] - a[0] > 2100 || a[1] - a[0] < 900) // Overflow had nothing to do with wrong value being returned - Braydon 
+      return a[2];                            // Reuse previous value to drive motor 
+  return a[1] - a[0];                         // No problem with the difference, return it 
 }
 
-void startRelay(){
+void closeRelay(){
   digitalWrite(12, LOW); 
 }
 
-void stopRelay(){
+void openRelay(){
   digitalWrite(12, HIGH);
 }
