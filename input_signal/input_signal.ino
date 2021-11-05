@@ -22,6 +22,8 @@ volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 m
 float prevWeight = 0.95;
 
 void setup() {
+
+  pinMode(7, INPUT);
   
   /*Relay For Ignition*/
   pinMode(12, OUTPUT);
@@ -75,21 +77,22 @@ void loop() {
     tchannel_2[2] = avg;
     tchannel_3[2] = avg;
   }
-  
+
   /* Driving Functionality*/ 
   int rightMotor = map(tchannel_2[2], 1000, 2000, 128, 255); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
   int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);  
   analogWrite(9, rightMotor); // Apply mapped duty cycle 
   analogWrite(11, leftMotor);
+  
 }
 
 
 void IR2() {
-  measure(2, tchannel_2);
+    measure(2, tchannel_2);
 }
 
 void IR3() {
-  measure(3, tchannel_3);
+    measure(3, tchannel_3);
 }
 
 void measure(int pin, volatile long unsigned times[]) {  
