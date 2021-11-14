@@ -1,10 +1,10 @@
 volatile long unsigned tchannel_2[4] = {0, 1500, 1500, 0}; // 1500uS is the neutral position, volatile is necessary for the interrupt
 volatile long unsigned tchannel_3[4] = {0, 1500, 1500, 0}; 
 volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 motor on 
-float weight = 0.95;
+float weight = 0.99;
 int defaultval;
-#define forwardCap = 1875;  //  75% speed 
-#define backwardCap = 1125; //  75% speed 
+#define forwardCap 1875  //  75% speed 
+#define backwardCap 1125 //  75% speed 
 
 void setup() {
   
@@ -70,7 +70,7 @@ void loop() {
   if (tchannel_3[2] < backwardCap) tchannel_3[2] = backwardCap;
       
   /* rounding - if sticks are close to each other, make them the same value (the avg)*/
-  if (tchannel_2[2] - tchannel_3[2] < 25 && tchannel_2[2] - tchannel_3[2] > -25)
+  if (tchannel_2[2] - tchannel_3[2] < 100 && tchannel_2[2] - tchannel_3[2] > -100)
   {
     int avg = (tchannel_2[2] + tchannel_3[2]) / 2;
     tchannel_2[2] = avg;
@@ -78,7 +78,7 @@ void loop() {
   }
   
   /* Driving Functionality*/ 
-  int rightMotor = map(tchannel_2[2], 1000, 2000, 128, 255); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
+  int rightMotor = map(tchannel_2[2], 1000, 2000, 255, 128); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
   int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);
   bool Stop = digitalRead(6);
 
