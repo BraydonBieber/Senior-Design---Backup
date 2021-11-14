@@ -1,33 +1,17 @@
-/*
- * Author(s): Braydon Bieber
- * Description: Interupts - Measure Pulse Width, Two Channels
- */
-
-
-/*
- * Name - Channel
- * ---------------------
- * Right Analog Horiz        - 1
- * Right Analog Vert         - 2
- * Left Analog Vert          - 3
- * Left Analog Horiz         - 4
- * VRA Knob Failsafe/Unused  - 5
- * VRB Knob Failsafe/Unused  - 6
- */
-
-volatile long unsigned tchannel_2[3] = {0, 1500, 1500}; // 1500uS is the neutral position, volatile is necessary for the interrupt
-volatile long unsigned tchannel_3[3] = {0, 1500, 1500}; 
+volatile long unsigned tchannel_2[4] = {0, 1500, 1500, 0}; // 1500uS is the neutral position, volatile is necessary for the interrupt
+volatile long unsigned tchannel_3[4] = {0, 1500, 1500, 0}; 
 volatile long unsigned tchannel_6[3] = {0, 1000, 1000}; // 1000 motor off 2000 motor on 
-
-float prevWeight = 0.95;
+float weight = 0.95;
+int defaultval;
+#define forwardCap = 1875;  //  75% speed 
+#define backwardCap = 1125; //  75% speed 
 
 void setup() {
-
-  pinMode(7, INPUT);
   
   /*Relay For Ignition*/
   pinMode(12, OUTPUT);
   pinMode(5, INPUT); 
+  pinMode(6, INPUT);
   
   /*Motor Driver*/
   pinMode(11, OUTPUT); // 490Hz 
@@ -36,6 +20,9 @@ void setup() {
   /*OUTPUT & Serial*/  
   Serial.begin(9600);
 
+  /*Default Value for Motors */
+  defaultval  = map(1500, 1000, 2000, 128, 255);
+  
   /*Receiver Channels*/      
   pinMode(2, INPUT);
   pinMode(3, INPUT);
@@ -43,20 +30,22 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(3), IR3, CHANGE); // Only Pin 2 & 3 Are Supported For This Hardware Interrupt On Nano 
 }
 
-bool c6HIGH = false;
+bool c6HIGH = false; // is c6 initialized
 
 void loop() {
   
- /* Measuring Relay Signal */
+ /* Measuring Channel 6 Relay Signal */
   if(digitalRead(5) && !c6HIGH){
     tchannel_6[0] = micros();
     c6HIGH = true;
   }
   else if(!digitalRead(5) && c6HIGH){
     tchannel_6[1] = micros();
-    tchannel_6[2] = safe_range(tchannel_6);
+    tchannel_6[2] = tchannel_6[1] - tchannel_6[0];
     c6HIGH = false;
   }
+
+  /*Dead Zones For Relay Switch */
   if(tchannel_6[2] > 1650){ 
     closeRelay(); // Deadzone - David Jochems 
   }
@@ -64,50 +53,68 @@ void loop() {
     openRelay(); // Deadzone - David Jochems 
   }
 
-  // correcting out-of-bounds values
-  if (tchannel_2[2] > 2000) tchannel_2[2] = 2000;
-  if (tchannel_2[2] < 1000) tchannel_2[2] = 1000;
-  if (tchannel_3[2] > 2000) tchannel_3[2] = 2000;
-  if (tchannel_3[2] < 1000) tchannel_3[2] = 1000;
+  /*Smoothing Operation On Output*/
+  if (tchannel_2[3])
+    tchannel_2[2] = tchannel_2[2] * weight + (tchannel_2[1] - tchannel_2[0]) * (1 - weight);
+  if (tchannel_3[3])
+    tchannel_3[2] = tchannel_3[2] * weight + (tchannel_3[1] - tchannel_3[0]) * (1 - weight);
+
+  /*Decrease Processor Performance*/
+  Serial.print(tchannel_2[2]);
+  Serial.println(tchannel_3[2]);
+  
+  /*correcting out-of-bounds values*/
+  if (tchannel_2[2] > forwardCap) tchannel_2[2] = forwardCap;
+  if (tchannel_2[2] < backwardCap) tchannel_2[2] = backwardCap;
+  if (tchannel_3[2] > forwardCap) tchannel_3[2] = forwardCap;
+  if (tchannel_3[2] < backwardCap) tchannel_3[2] = backwardCap;
       
-  // rounding - if sticks are close to each other, make them the same value (the avg)
+  /* rounding - if sticks are close to each other, make them the same value (the avg)*/
   if (tchannel_2[2] - tchannel_3[2] < 25 && tchannel_2[2] - tchannel_3[2] > -25)
   {
     int avg = (tchannel_2[2] + tchannel_3[2]) / 2;
     tchannel_2[2] = avg;
     tchannel_3[2] = avg;
   }
-
+  
   /* Driving Functionality*/ 
   int rightMotor = map(tchannel_2[2], 1000, 2000, 128, 255); // Mapping - 1000 to 2000 to 128 to 255 - David and Braydon 
-  int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);  
-  analogWrite(9, rightMotor); // Apply mapped duty cycle 
-  analogWrite(11, leftMotor);
-  
+  int leftMotor  = map(tchannel_3[2], 1000, 2000, 128, 255);
+  bool Stop = digitalRead(6);
+
+  /*Drive Motors And Prevent Forward Collision*/
+  if(!Stop || (leftMotor < defaultval && rightMotor < defaultval) ) // Obstacle Stop 
+  {  
+    analogWrite(9, rightMotor); // Apply mapped duty cycle 
+    analogWrite(11, leftMotor);
+  }
+  else{
+    analogWrite(9, defaultval);
+    analogWrite(11, defaultval);
+  }
 }
 
 
 void IR2() {
-    measure(2, tchannel_2);
-}
-
-void IR3() {
-    measure(3, tchannel_3);
-}
-
-void measure(int pin, volatile long unsigned times[]) {  
-  if(digitalRead(pin)==HIGH)
-    times[0] = micros();
+  if (digitalRead(2) == HIGH){
+    tchannel_2[0] = micros();
+    tchannel_2[3] = 0; // not ready for calculation 
+  }
   else{
-    times[1] = micros();
-    times[2] = times[2] * prevWeight + safe_range(times) * (1 - prevWeight); // smoothing using weighted avg to prevent quick speed changes 
+    tchannel_2[1] = micros();
+    tchannel_2[3] = 1; // ready for calculation 
   }
 }
 
-volatile long unsigned safe_range( volatile long unsigned a[]) {   
-  if(a[1] - a[0] > 2100 || a[1] - a[0] < 900) // Overflow had nothing to do with wrong value being returned - Braydon 
-      return a[2];                            // Reuse previous value to drive motor 
-  return a[1] - a[0];                         // No problem with the difference, return it 
+void IR3() {
+  if (digitalRead(3) == HIGH){
+    tchannel_3[0] = micros();
+    tchannel_3[3] = 0; // not ready for calculation 
+  }
+  else{
+    tchannel_3[1] = micros();
+    tchannel_3[3] = 1; // ready for calculation 
+  }
 }
 
 void closeRelay(){
