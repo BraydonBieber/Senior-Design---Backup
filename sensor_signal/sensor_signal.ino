@@ -2,6 +2,8 @@ const int TRIG = 9;
 const int ECHO = 2;
 const int STOP = 6;
 
+int stopDistance = 75;  // measured in cm, kind of
+
 void setup() {
   // put your setup code here, to run once:
   pinMode(TRIG, OUTPUT);
@@ -14,7 +16,7 @@ void setup() {
 
 void loop() {
   float pulse = pulseIn(ECHO, HIGH, 15000)*170/10000; // Convert pulse width to distance in cm
-  if(pulse < 100 && pulse != 0) // 100 cm is 1m, also ignore timeout values of 0 since the signal echo did not return 
+  if(pulse < stopDistance && pulse != 0) // 100 cm is 1m, also ignore timeout values of 0 since the signal echo did not return 
     digitalWrite(STOP, HIGH);
   else
     digitalWrite(STOP, LOW);
